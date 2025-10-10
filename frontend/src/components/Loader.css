@@ -1,0 +1,32 @@
+.loader {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  color: #334155;
+}
+
+.loader--fullscreen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(244, 246, 251, 0.9);
+  z-index: 1000;
+  font-size: 1.1rem;
+}
+
+.loader__spinner {
+  width: 1.25rem;
+  height: 1.25rem;
+  border: 3px solid #d0d8ee;
+  border-top-color: #2563eb;
+  border-radius: 999px;
+  animation: loader-rotate 0.8s linear infinite;
+}
+
+@keyframes loader-rotate {
+  to {
+    transform: rotate(360deg);
+  }
+}
