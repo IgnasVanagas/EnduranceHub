@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+ï»¿import { useEffect, useState } from 'react';
 import { format, parseISO } from 'date-fns';
 import { useAuth } from '../hooks/useAuth.js';
 import Loader from '../components/Loader.jsx';
@@ -25,11 +25,13 @@ const TrainingPlansPage = () => {
   const [plans, setPlans] = useState([]);
   const [athletes, setAthletes] = useState([]);
   const [form, setForm] = useState(defaultForm);
+  const [editingId, setEditingId] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
 
   const canManage = user.role === 'SPECIALIST' || user.role === 'ADMIN';
+  const isEditing = editingId !== null;
 
   useEffect(() => {
     let isMounted = true;
@@ -66,6 +68,25 @@ const TrainingPlansPage = () => {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
+  const resetForm = () => {
+    setForm(defaultForm);
+    setEditingId(null);
+  };
+
+  const handleEdit = (plan) => {
+    setError(null);
+    setForm({
+      athleteId: plan.athleteId ? String(plan.athleteId) : '',
+      specialistId: plan.specialistId ? String(plan.specialistId) : '',
+      title: plan.title || '',
+      description: plan.description || '',
+      startDate: plan.startDate ? plan.startDate.slice(0, 10) : '',
+      endDate: plan.endDate ? plan.endDate.slice(0, 10) : '',
+      intensityLevel: plan.intensityLevel || 'MEDIUM'
+    });
+    setEditingId(plan.id);
+  };
+
   const handleSubmit = async (event) => {
     event.preventDefault();
     if (!form.athleteId || !form.title || !form.startDate || !form.endDate) {
@@ -90,15 +111,25 @@ const TrainingPlansPage = () => {
         payload.specialistId = Number(form.specialistId);
       }
 
-      const response = await authFetch('/training-plans', {
-        method: 'POST',
-        body: payload
-      });
+      if (isEditing) {
+        const response = await authFetch(`/training-plans/${editingId}`, {
+          method: 'PUT',
+          body: payload
+        });
+        setPlans((prev) =>
+          prev.map((plan) => (plan.id === editingId ? response.trainingPlan : plan))
+        );
+      } else {
+        const response = await authFetch('/training-plans', {
+          method: 'POST',
+          body: payload
+        });
+        setPlans((prev) => [response.trainingPlan, ...prev]);
+      }
 
-      setPlans((prev) => [response.trainingPlan, ...prev]);
-      setForm(defaultForm);
+      resetForm();
     } catch (err) {
-      setError(err.message || 'Unable to create a training plan.');
+      setError(err.message || 'Unable to save the training plan.');
     } finally {
       setSaving(false);
     }
@@ -109,6 +140,9 @@ const TrainingPlansPage = () => {
     try {
       await authFetch(`/training-plans/${planId}`, { method: 'DELETE' });
       setPlans((prev) => prev.filter((plan) => plan.id !== planId));
+      if (editingId === planId) {
+        resetForm();
+      }
     } catch (err) {
       setError(err.message || 'Unable to delete the plan.');
     }
@@ -130,11 +164,18 @@ const TrainingPlansPage = () => {
       <div className="plans-page__grid">
         {canManage && (
           <section className="plans-page__card">
-            <h3>New plan</h3>
+            <h3>{isEditing ? 'Edit plan' : 'New plan'}</h3>
             <form className="plans-form" onSubmit={handleSubmit}>
               <div className="plans-form__field">
                 <label htmlFor="athleteId">Athlete</label>
-                <select name="athleteId" id="athleteId" value={form.athleteId} onChange={handleChange} required>
+                <select
+                  name="athleteId"
+                  id="athleteId"
+                  value={form.athleteId}
+                  onChange={handleChange}
+                  required
+                  disabled={isEditing}
+                >
                   <option value="">Select an athlete</option>
                   {athletes.map((athlete) => (
                     <option key={athlete.id} value={athlete.id}>
@@ -176,17 +217,36 @@ const TrainingPlansPage = () => {
 
               <div className="plans-form__field">
                 <label htmlFor="startDate">Start date</label>
-                <input name="startDate" id="startDate" type="date" value={form.startDate} onChange={handleChange} required />
+                <input
+                  name="startDate"
+                  id="startDate"
+                  type="date"
+                  value={form.startDate}
+                  onChange={handleChange}
+                  required
+                />
               </div>
 
               <div className="plans-form__field">
                 <label htmlFor="endDate">End date</label>
-                <input name="endDate" id="endDate" type="date" value={form.endDate} onChange={handleChange} required />
+                <input
+                  name="endDate"
+                  id="endDate"
+                  type="date"
+                  value={form.endDate}
+                  onChange={handleChange}
+                  required
+                />
               </div>
 
               <div className="plans-form__field">
                 <label htmlFor="intensityLevel">Intensity level</label>
-                <select name="intensityLevel" id="intensityLevel" value={form.intensityLevel} onChange={handleChange}>
+                <select
+                  name="intensityLevel"
+                  id="intensityLevel"
+                  value={form.intensityLevel}
+                  onChange={handleChange}
+                >
                   {Object.entries(intensityLabels).map(([value, label]) => (
                     <option key={value} value={value}>
                       {label}
@@ -197,8 +257,13 @@ const TrainingPlansPage = () => {
 
               <div className="plans-form__actions">
                 <button type="submit" disabled={saving}>
-                  {saving ? 'Saving...' : 'Save plan'}
+                  {saving ? 'Saving...' : isEditing ? 'Update plan' : 'Save plan'}
                 </button>
+                {isEditing && (
+                  <button type="button" className="plans-form__secondary" onClick={resetForm} disabled={saving}>
+                    Cancel
+                  </button>
+                )}
               </div>
             </form>
           </section>
@@ -227,13 +292,15 @@ const TrainingPlansPage = () => {
                       {plan.athlete?.user?.firstName} {plan.athlete?.user?.lastName}
                     </td>
                     <td>
-                      {plan.startDate ? format(parseISO(plan.startDate), 'yyyy-MM-dd') : 'Not set'}
-                      {' '}–{' '}
+                      {plan.startDate ? format(parseISO(plan.startDate), 'yyyy-MM-dd') : 'Not set'} -{' '}
                       {plan.endDate ? format(parseISO(plan.endDate), 'yyyy-MM-dd') : 'Not set'}
                     </td>
                     <td>{intensityLabels[plan.intensityLevel] || plan.intensityLevel}</td>
                     {canManage && (
                       <td className="plans-table__actions">
+                        <button type="button" onClick={() => handleEdit(plan)}>
+                          Edit
+                        </button>
                         <button type="button" onClick={() => handleDelete(plan.id)}>
                           Delete
                         </button>

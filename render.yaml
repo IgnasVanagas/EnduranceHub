@@ -1,0 +1,47 @@
+services:
+  - type: web
+    name: endurancehub-backend
+    env: node
+    plan: free
+    branch: main
+    buildCommand: npm install
+    startCommand: npm run start
+    healthCheckPath: /api/health
+    autoDeploy: false
+    envVars:
+      - key: NODE_VERSION
+        value: 20
+      - key: PORT
+        value: 4000
+      - key: MYSQL_HOST
+        value: replace-with-mysql-host
+      - key: MYSQL_PORT
+        value: 3306
+      - key: MYSQL_USER
+        value: replace-with-mysql-user
+      - key: MYSQL_PASSWORD
+        value: replace-with-mysql-password
+      - key: MYSQL_DB
+        value: endurancehub
+      - key: JWT_ACCESS_SECRET
+        value: replace-with-strong-secret
+      - key: JWT_REFRESH_SECRET
+        value: replace-with-strong-refresh-secret
+      - key: ACCESS_TOKEN_TTL
+        value: 15m
+      - key: REFRESH_TOKEN_TTL
+        value: 7d
+      - key: CORS_ORIGIN
+        value: https://replace-with-frontend-hostname.onrender.com
+
+  - type: static_site
+    name: endurancehub-frontend
+    env: static
+    plan: free
+    branch: main
+    buildCommand: npm install && npm run build
+    staticPublishPath: dist
+    autoDeploy: false
+    envVars:
+      - key: VITE_API_URL
+        value: https://replace-with-backend-hostname.onrender.com/api

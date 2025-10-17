@@ -7,6 +7,7 @@
         "test": "npm run lint",
         "lint": "eslint src --ext .js",
         "seed": "node src/scripts/seed.js",
+        "demo": "npx newman run ../docs/endurancehub.postman_collection.json --reporter-cli-no-summary --reporter-cli-no-banner",
         "dev": "nodemon src/server.js",
         "start": "node src/server.js"
     },
@@ -30,6 +31,7 @@
     "devDependencies": {
         "@eslint/js": "^9.35.0",
         "eslint": "^9.35.0",
+        "newman": "^6.2.1",
         "nodemon": "^3.1.10"
     }
 }

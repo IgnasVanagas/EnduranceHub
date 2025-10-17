@@ -2,8 +2,16 @@ const Joi = require('joi');
 const authService = require('../services/auth.service');
 const { USER_ROLES } = require('../models');
 
+const emailValidator = Joi.string()
+  .trim()
+  .lowercase()
+  .pattern(/^[^@\s]+@[^@\s]+\.[^@\s]+$/)
+  .messages({
+    'string.pattern.base': '"email" must be a valid email'
+  });
+
 const registerSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: emailValidator.required(),
   password: Joi.string().min(8).required(),
   firstName: Joi.string().required(),
   lastName: Joi.string().required(),
@@ -18,7 +26,7 @@ const registerSchema = Joi.object({
 });
 
 const loginSchema = Joi.object({
-  email: Joi.string().email().required(),
+  email: emailValidator.required(),
   password: Joi.string().required()
 });
 

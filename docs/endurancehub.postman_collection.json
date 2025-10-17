@@ -27,6 +27,18 @@
       "value": ""
     },
     {
+      "key": "tempAthleteEmail",
+      "value": ""
+    },
+    {
+      "key": "tempAthleteUserId",
+      "value": ""
+    },
+    {
+      "key": "tempAthleteId",
+      "value": ""
+    },
+    {
       "key": "runnerAthleteId",
       "value": ""
     },
@@ -44,6 +56,10 @@
     },
     {
       "key": "trainingPlanId",
+      "value": ""
+    },
+    {
+      "key": "nutritionPlanId",
       "value": ""
     },
     {
@@ -91,9 +107,9 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json();",
-                  "pm.collectionVariables.set('adminAccessToken', data.tokens.accessToken);",
-                  "pm.collectionVariables.set('adminRefreshToken', data.tokens.refreshToken);"
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('adminAccessToken', body.tokens.accessToken);",
+                  "pm.collectionVariables.set('adminRefreshToken', body.tokens.refreshToken);"
                 ],
                 "type": "text/javascript"
               }
@@ -181,9 +197,9 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json();",
-                  "pm.collectionVariables.set('athleteAccessToken', data.tokens.accessToken);",
-                  "pm.collectionVariables.set('athleteUserId', String(data.user.id));"
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('athleteAccessToken', body.tokens.accessToken);",
+                  "pm.collectionVariables.set('athleteUserId', String(body.user.id));"
                 ],
                 "type": "text/javascript"
               }
@@ -226,9 +242,9 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json();",
-                  "pm.collectionVariables.set('specialistAccessToken', data.tokens.accessToken);",
-                  "pm.collectionVariables.set('specialistUserId', String(data.user.id));"
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('specialistAccessToken', body.tokens.accessToken);",
+                  "pm.collectionVariables.set('specialistUserId', String(body.user.id));"
                 ],
                 "type": "text/javascript"
               }
@@ -262,8 +278,53 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json();",
-                  "pm.test('Returns athlete profile', function () { pm.expect(data.user.email).to.eql('runner@endurancehub.test'); });"
+                  "const body = pm.response.json();",
+                  "pm.test('Returns athlete profile', function () { pm.expect(body.user.email).to.eql('runner@endurancehub.test'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Register Temp Athlete",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/auth/register",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "auth",
+                "register"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"temp-athlete-{{$timestamp}}@endurancehub.test\",\n  \"password\": \"TempAthlete123!\",\n  \"firstName\": \"Demo\",\n  \"lastName\": \"Athlete\",\n  \"role\": \"ATHLETE\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tempAthleteEmail', body.user.email);",
+                  "pm.collectionVariables.set('tempAthleteUserId', String(body.user.id));"
                 ],
                 "type": "text/javascript"
               }
@@ -385,12 +446,16 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
-                  "const data = pm.response.json();",
-                  "const runner = data.athletes.find((athlete) => athlete.user && athlete.user.email === 'runner@endurancehub.test');",
-                  "const triathlete = data.athletes.find((athlete) => athlete.user && athlete.user.email === 'triathlete@endurancehub.test');",
+                  "const body = pm.response.json();",
+                  "const runner = body.athletes.find((athlete) => athlete.user && athlete.user.email === 'runner@endurancehub.test');",
+                  "const triathlete = body.athletes.find((athlete) => athlete.user && athlete.user.email === 'triathlete@endurancehub.test');",
+                  "const tempEmail = pm.collectionVariables.get('tempAthleteEmail');",
+                  "const tempAthlete = tempEmail ? body.athletes.find((athlete) => athlete.user && athlete.user.email === tempEmail) : null;",
                   "pm.collectionVariables.set('runnerAthleteId', runner ? String(runner.id) : '');",
                   "pm.collectionVariables.set('triathleteAthleteId', triathlete ? String(triathlete.id) : '');",
-                  "pm.test('Runner athlete present', function () { pm.expect(runner).to.be.an('object'); });"
+                  "if (tempAthlete) { pm.collectionVariables.set('tempAthleteId', String(tempAthlete.id)); }",
+                  "pm.test('Runner athlete present', function () { pm.expect(runner).to.be.an('object'); });",
+                  "if (tempEmail) { pm.test('Temp athlete located', function () { pm.expect(tempAthlete).to.be.an('object'); }); }"
                 ],
                 "type": "text/javascript"
               }
@@ -457,6 +522,136 @@
               "script": {
                 "exec": [
                   "pm.test('Status 403', function () { pm.response.to.have.status(403); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Temp Athlete (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/athletes/{{tempAthleteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "athletes",
+                "{{tempAthleteId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', function () { pm.response.to.have.status(204); });",
+                  "pm.collectionVariables.unset('tempAthleteId');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Temp Athlete (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/athletes",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "athletes"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userId\": \"{{tempAthleteUserId}}\",\n  \"heightCm\": 176,\n  \"weightKg\": 67,\n  \"restingHeartRate\": 53,\n  \"bio\": \"Created via automated demo\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tempAthleteId', String(body.athlete.id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Temp Athlete (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/athletes/{{tempAthleteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "athletes",
+                "{{tempAthleteId}}"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"weightKg\": 68.5,\n  \"restingHeartRate\": 51,\n  \"bio\": \"Updated via automation\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('tempAthleteId', String(body.athlete.id));",
+                  "pm.test('Bio updated', function () { pm.expect(body.athlete.bio).to.eql('Updated via automation'); });"
                 ],
                 "type": "text/javascript"
               }
@@ -585,8 +780,8 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
-                  "const data = pm.response.json();",
-                  "pm.collectionVariables.set('trainingPlanId', String(data.trainingPlan.id));"
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('trainingPlanId', String(body.trainingPlan.id));"
                 ],
                 "type": "text/javascript"
               }
@@ -611,6 +806,92 @@
               "path": [
                 "training-plans",
                 "{{trainingPlanId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Created Training Plan",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/training-plans/{{trainingPlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-plans",
+                "{{trainingPlanId}}"
+              ]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"title\": \"Tempo development block\",\n  \"description\": \"Updated to include race pace workouts.\",\n  \"startDate\": \"2025-04-01\",\n  \"endDate\": \"2025-05-26\",\n  \"intensityLevel\": \"HIGH\"\n}",
+            "options": {
+              "raw": {
+                "language": "json"
+              }
+            }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Intensity updated', function () { pm.expect(body.trainingPlan.intensityLevel).to.eql('HIGH'); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List Training Plans (Admin)",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/training-plans?athleteId={{runnerAthleteId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "training-plans"
+              ],
+              "query": [
+                {
+                  "key": "athleteId",
+                  "value": "{{runnerAthleteId}}"
+                }
               ]
             }
           },
@@ -697,6 +978,168 @@
               "script": {
                 "exec": [
                   "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create Nutrition Plan (Admin)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutrition-plans",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutrition-plans"
+              ]
+            },
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"athleteId\": \"{{runnerAthleteId}}\",\n  \"specialistId\": \"{{specialistUserId}}\",\n  \"title\": \"Race week fueling\",\n  \"description\": \"Adjust carbohydrates for taper week.\",\n  \"caloriesPerDay\": 3000,\n  \"macronutrientRatio\": {\n    \"carbohydrates\": 60,\n    \"protein\": 20,\n    \"fat\": 20\n  },\n  \"startDate\": \"2025-04-15\",\n  \"endDate\": \"2025-04-21\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('nutritionPlanId', String(body.nutritionPlan.id));"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Created Nutrition Plan",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutrition-plans/{{nutritionPlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutrition-plans",
+                "{{nutritionPlanId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update Nutrition Plan (Admin)",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutrition-plans/{{nutritionPlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutrition-plans",
+                "{{nutritionPlanId}}"
+              ]
+          },
+          "body": {
+            "mode": "raw",
+            "raw": "{\n  \"title\": \"Race week fueling\",\n  \"description\": \"Updated macros before race day.\",\n  \"caloriesPerDay\": 3000,\n  \"macronutrientRatio\": {\n    \"carbohydrates\": 58,\n    \"protein\": 22,\n    \"fat\": 20\n  },\n  \"startDate\": \"2025-04-15\",\n  \"endDate\": \"2025-04-21\"\n}",
+            "options": {
+              "raw": {
+                "language": "json"
+              }
+            }
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 200', function () { pm.response.to.have.status(200); });",
+                  "const body = pm.response.json();",
+                  "pm.test('Macros updated', function () { pm.expect(body.nutritionPlan.macronutrientRatio.carbohydrates).to.eql(58); });"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete Nutrition Plan (Admin)",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminAccessToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/nutrition-plans/{{nutritionPlanId}}",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "nutrition-plans",
+                "{{nutritionPlanId}}"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status 204', function () { pm.response.to.have.status(204); });",
+                  "pm.collectionVariables.unset('nutritionPlanId');"
                 ],
                 "type": "text/javascript"
               }
@@ -792,8 +1235,8 @@
               "script": {
                 "exec": [
                   "pm.test('Status 201', function () { pm.response.to.have.status(201); });",
-                  "const data = pm.response.json();",
-                  "pm.collectionVariables.set('messageId', String(data.message.id));"
+                  "const body = pm.response.json();",
+                  "pm.collectionVariables.set('messageId', String(body.message.id));"
                 ],
                 "type": "text/javascript"
               }

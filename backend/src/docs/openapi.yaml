@@ -1,14 +1,14 @@
-openapi: 3.0.3
+﻿openapi: 3.0.3
 info:
   title: EnduranceHub API
   version: 1.0.0
-  description: REST API for managing athletes, training and nutrition plans within the EnduranceHub platform.
+  description: REST API for managing endurance athletes, their plans, and internal communication.
 servers:
   - url: http://localhost:4000/api
     description: Local development server
 tags:
   - name: Auth
-    description: Authentication endpoints
+    description: Authentication and token management endpoints
   - name: Athletes
     description: Manage athlete profiles and related plans
   - name: Training Plans
@@ -28,38 +28,38 @@ paths:
           application/json:
             schema:
               $ref: '#/components/schemas/RegisterRequest'
-    responses:
-      '201':
-        description: User registered successfully
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Email already registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                conflict:
+                  value:
+                    message: Email is already registered
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Authenticate a user
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/AuthResponse'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '409':
-        description: Email already registered
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              conflict:
-                value:
-                  message: Email is already registered
-/auth/login:
-  post:
-    tags: [Auth]
-    summary: Authenticate a user
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/LoginRequest'
+              $ref: '#/components/schemas/LoginRequest'
       responses:
         '200':
-          description: Authenticated successfully
+          description: Authentication successful
           content:
             application/json:
               schema:
@@ -72,347 +72,320 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
-              examples:
-                unauthorized:
-                  value:
-                    message: Invalid credentials
-/auth/refresh:
-  post:
-    tags: [Auth]
-    summary: Refresh authentication tokens
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/RefreshRequest'
-    responses:
-      '200':
-        description: Tokens refreshed
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/RefreshResponse'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        description: Invalid refresh token
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
             examples:
               unauthorized:
                 value:
-                  message: Invalid refresh token
-/auth/logout:
-  post:
-    tags: [Auth]
-    summary: Revoke a refresh token
-    requestBody:
-      required: true
-      content:
-        application/json:
+                  message: Invalid credentials
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh authentication tokens
+      requestBody:
+        required: true
+        content:
+          application/json:
             schema:
               $ref: '#/components/schemas/RefreshRequest'
-    responses:
-      '204':
-        description: Token revoked
-      '400':
-        $ref: '#/components/responses/ValidationError'
-/auth/me:
-  get:
-    tags: [Auth]
-    summary: Get current user profile
-    security:
-      - bearerAuth: []
-    responses:
-      '200':
-        description: Authenticated user info
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /auth/logout:
+    post:
+      tags: [Auth]
+      summary: Revoke a refresh token
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                user:
-                  $ref: '#/components/schemas/UserSummary'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-/athletes:
-  get:
-    tags: [Athletes]
-    summary: List athletes
-    security:
-      - bearerAuth: []
-    parameters:
-      - in: query
-        name: userId
-        schema:
-          type: integer
-        description: Filter by related user id (admin/specialist only)
-    responses:
-      '200':
-        description: Collection of athletes
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '204':
+          description: Token revoked
+        '400':
+          $ref: '#/components/responses/ValidationError'
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Get current user profile
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Authenticated user info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  user:
+                    $ref: '#/components/schemas/UserSummary'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+  /athletes:
+    get:
+      tags: [Athletes]
+      summary: List athletes
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: query
+          schema:
+            type: integer
+          description: Filter by related user id (admin/specialist only)
+      responses:
+        '200':
+          description: Collection of athletes
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  athletes:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Athlete'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags: [Athletes]
+      summary: Create athlete profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                athletes:
-                  type: array
-                  items:
+              $ref: '#/components/schemas/AthleteCreateRequest'
+      responses:
+        '201':
+          description: Athlete created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  athlete:
                     $ref: '#/components/schemas/Athlete'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-  post:
-    tags: [Athletes]
-    summary: Create athlete profile
-    security:
-      - bearerAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Related user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Athlete profile already exists
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: User role incompatible
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /athletes/{id}:
+    parameters:
+      - $ref: '#/components/parameters/AthleteId'
+    get:
+      tags: [Athletes]
+      summary: Get athlete details
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Athlete info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  athlete:
+                    $ref: '#/components/schemas/AthleteExpanded'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Athletes]
+      summary: Update athlete profile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AthleteUpdateRequest'
+      responses:
+        '200':
+          description: Athlete updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  athlete:
+                    $ref: '#/components/schemas/Athlete'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Athletes]
+      summary: Delete athlete profile
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Athlete deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /athletes/{id}/training-plans:
+    get:
+      tags: [Training Plans]
+      summary: List training plans for athlete
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AthleteId'
+      responses:
+        '200':
+          description: Training plans for the athlete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trainingPlans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrainingPlan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /athletes/{id}/nutrition-plans:
+    get:
+      tags: [Nutrition Plans]
+      summary: List nutrition plans for athlete
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: '#/components/parameters/AthleteId'
+      responses:
+        '200':
+          description: Nutrition plans for the athlete
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nutritionPlans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NutritionPlan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /training-plans:
+    get:
+      tags: [Training Plans]
+      summary: List training plans
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: athleteId
+          in: query
           schema:
-            $ref: '#/components/schemas/AthleteCreateRequest'
-    responses:
-      '201':
-        description: Athlete created
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                athlete:
-                  $ref: '#/components/schemas/Athlete'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        $ref: '#/components/responses/ForbiddenError'
-      '404':
-        description: Related user not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missingUser:
-                value:
-                  message: User not found
-      '409':
-        description: Athlete profile already exists
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              duplicate:
-                value:
-                  message: Athlete profile already exists for this user
-      '422':
-        description: User role is incompatible with athlete profile
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              invalidRole:
-                value:
-                  message: User role must be ATHLETE to create an athlete profile
-/athletes/{id}:
-  get:
-    tags: [Athletes]
-    summary: Get athlete details
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/AthleteId'
-    responses:
-      '200':
-        description: Athlete info
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                athlete:
-                  $ref: '#/components/schemas/AthleteExpanded'
-      '404':
-        description: Athlete not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Athlete not found
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Attempt to access athlete without permission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Cannot access another athlete profile
-  put:
-    tags: [Athletes]
-    summary: Update athlete profile
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/AthleteId'
-    requestBody:
-      required: true
-      content:
-        application/json:
+            type: integer
+          description: Filter by athlete id
+        - name: specialistId
+          in: query
           schema:
-            $ref: '#/components/schemas/AthleteUpdateRequest'
-    responses:
-      '200':
-        description: Updated athlete
+            type: integer
+          description: Filter by specialist id (admin only)
+      responses:
+        '200':
+          description: Training plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trainingPlans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/TrainingPlan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags: [Training Plans]
+      summary: Create training plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                athlete:
-                  $ref: '#/components/schemas/Athlete'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Attempt to update athlete without permission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Cannot update another athlete profile
-      '404':
-        description: Athlete not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Athlete not found
-  delete:
-    tags: [Athletes]
-    summary: Remove athlete profile
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/AthleteId'
-    responses:
-      '204':
-        description: Deleted
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        $ref: '#/components/responses/ForbiddenError'
-      '404':
-        description: Athlete not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Athlete not found
-/athletes/{id}/training-plans:
-  get:
-    tags: [Athletes, Training Plans]
-    summary: List training plans for athlete
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/AthleteId'
-    responses:
-      '200':
-        description: Training plans
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                trainingPlans:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/TrainingPlan'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-/athletes/{id}/nutrition-plans:
-  get:
-    tags: [Athletes, Nutrition Plans]
-    summary: List nutrition plans for athlete
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/AthleteId'
-    responses:
-      '200':
-        description: Nutrition plans
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionPlans:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/NutritionPlan'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-/training-plans:
-  get:
-    tags: [Training Plans]
-    summary: List training plans
-    security:
-      - bearerAuth: []
-    parameters:
-      - in: query
-        name: athleteId
-        schema:
-          type: integer
-        description: Filter by athlete id
-    responses:
-      '200':
-        description: Training plans collection
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                trainingPlans:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/TrainingPlan'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-  post:
-    tags: [Training Plans]
-    summary: Create training plan
-    security:
-      - bearerAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/TrainingPlanCreateRequest'
+              $ref: '#/components/schemas/TrainingPlanCreateRequest'
       responses:
         '201':
           description: Training plan created
@@ -423,188 +396,145 @@ paths:
                 properties:
                   trainingPlan:
                     $ref: '#/components/schemas/TrainingPlan'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        $ref: '#/components/responses/ForbiddenError'
-      '404':
-        description: Athlete not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missingAthlete:
-                value:
-                  message: Athlete not found
-      '422':
-        description: Payload violates business rules
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              invalid:
-                value:
-                  message: specialistId is required
-/training-plans/{id}:
-  get:
-    tags: [Training Plans]
-    summary: Get training plan
-    security:
-      - bearerAuth: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /training-plans/{id}:
     parameters:
       - $ref: '#/components/parameters/TrainingPlanId'
-    responses:
-      '200':
-        description: Training plan data
+    get:
+      tags: [Training Plans]
+      summary: Get training plan
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Training plan detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trainingPlan:
+                    $ref: '#/components/schemas/TrainingPlan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Training plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Training Plans]
+      summary: Update training plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                trainingPlan:
-                  $ref: '#/components/schemas/TrainingPlan'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Insufficient permissions to view training plan
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Insufficient permissions to view this plan
-      '404':
-        description: Training plan not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Training plan not found
-  put:
-    tags: [Training Plans]
-    summary: Update training plan
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/TrainingPlanId'
-    requestBody:
-      required: true
-      content:
-        application/json:
+              $ref: '#/components/schemas/TrainingPlanUpdateRequest'
+      responses:
+        '200':
+          description: Training plan updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  trainingPlan:
+                    $ref: '#/components/schemas/TrainingPlan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Training plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Training Plans]
+      summary: Delete training plan
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Training plan deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Training plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /nutrition-plans:
+    get:
+      tags: [Nutrition Plans]
+      summary: List nutrition plans
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: athleteId
+          in: query
           schema:
-            $ref: '#/components/schemas/TrainingPlanUpdateRequest'
-    responses:
-      '200':
-        description: Updated training plan
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                trainingPlan:
-                  $ref: '#/components/schemas/TrainingPlan'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Insufficient permissions to update training plan
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Insufficient permissions to update this plan
-      '404':
-        description: Training plan not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Training plan not found
-  delete:
-    tags: [Training Plans]
-    summary: Delete training plan
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/TrainingPlanId'
-    responses:
-      '204':
-        description: Deleted
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Insufficient permissions to delete training plan
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Insufficient permissions to delete this plan
-      '404':
-        description: Training plan not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Training plan not found
-/nutrition-plans:
-  get:
-    tags: [Nutrition Plans]
-    summary: List nutrition plans
-    security:
-      - bearerAuth: []
-    parameters:
-      - in: query
-        name: athleteId
-        schema:
-          type: integer
-        description: Filter by athlete id
-    responses:
-      '200':
-        description: Nutrition plans collection
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                nutritionPlans:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/NutritionPlan'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-  post:
-    tags: [Nutrition Plans]
-    summary: Create nutrition plan
-    security:
-      - bearerAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
+            type: integer
+          description: Filter by athlete id
+        - name: specialistId
+          in: query
           schema:
-            $ref: '#/components/schemas/NutritionPlanCreateRequest'
+            type: integer
+          description: Filter by specialist id (admin only)
+      responses:
+        '200':
+          description: Nutrition plans
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nutritionPlans:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/NutritionPlan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags: [Nutrition Plans]
+      summary: Create nutrition plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/NutritionPlanCreateRequest'
       responses:
         '201':
           description: Nutrition plan created
@@ -615,192 +545,145 @@ paths:
                 properties:
                   nutritionPlan:
                     $ref: '#/components/schemas/NutritionPlan'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        $ref: '#/components/responses/ForbiddenError'
-      '404':
-        description: Athlete not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missingAthlete:
-                value:
-                  message: Athlete not found
-      '422':
-        description: Payload violates business rules
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              invalid:
-                value:
-                  message: specialistId is required
-/nutrition-plans/{id}:
-  get:
-    tags: [Nutrition Plans]
-    summary: Get nutrition plan
-    security:
-      - bearerAuth: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Athlete not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Business rule violation
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /nutrition-plans/{id}:
     parameters:
       - $ref: '#/components/parameters/NutritionPlanId'
-    responses:
-      '200':
-        description: Nutrition plan data
+    get:
+      tags: [Nutrition Plans]
+      summary: Get nutrition plan
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Nutrition plan detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nutritionPlan:
+                    $ref: '#/components/schemas/NutritionPlan'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Nutrition plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    put:
+      tags: [Nutrition Plans]
+      summary: Update nutrition plan
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                nutritionPlan:
-                  $ref: '#/components/schemas/NutritionPlan'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Insufficient permissions to view nutrition plan
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Insufficient permissions to view this plan
-      '404':
-        description: Nutrition plan not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Nutrition plan not found
-  put:
-    tags: [Nutrition Plans]
-    summary: Update nutrition plan
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/NutritionPlanId'
-    requestBody:
-      required: true
-      content:
-        application/json:
+              $ref: '#/components/schemas/NutritionPlanUpdateRequest'
+      responses:
+        '200':
+          description: Nutrition plan updated
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  nutritionPlan:
+                    $ref: '#/components/schemas/NutritionPlan'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Nutrition plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Nutrition Plans]
+      summary: Delete nutrition plan
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Nutrition plan deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Nutrition plan not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages:
+    get:
+      tags: [Messages]
+      summary: List messages
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: box
+          in: query
           schema:
-            $ref: '#/components/schemas/NutritionPlanUpdateRequest'
-    responses:
-      '200':
-        description: Updated nutrition plan
+            type: string
+            enum: [inbox, outbox, all]
+            default: inbox
+          description: Select inbox, outbox, or all messages (admin only for all)
+      responses:
+        '200':
+          description: Message collection
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  messages:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+    post:
+      tags: [Messages]
+      summary: Send a message
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                nutritionPlan:
-                  $ref: '#/components/schemas/NutritionPlan'
-      '400':
-        $ref: '#/components/responses/ValidationError'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Insufficient permissions to update nutrition plan
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Insufficient permissions to update this plan
-      '404':
-        description: Nutrition plan not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Nutrition plan not found
-  delete:
-    tags: [Nutrition Plans]
-    summary: Delete nutrition plan
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/NutritionPlanId'
-    responses:
-      '204':
-        description: Deleted
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Insufficient permissions to delete nutrition plan
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Insufficient permissions to delete this plan
-      '404':
-        description: Nutrition plan not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Nutrition plan not found
-/messages:
-  get:
-    tags: [Messages]
-    summary: List user messages
-    security:
-      - bearerAuth: []
-    parameters:
-      - in: query
-        name: box
-        schema:
-          type: string
-          enum: [inbox, outbox, all]
-        description: Which mailbox to view (all available only for admins)
-    responses:
-      '200':
-        description: Messages list
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                messages:
-                  type: array
-                  items:
-                    $ref: '#/components/schemas/Message'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-  post:
-    tags: [Messages]
-    summary: Send a message
-    security:
-      - bearerAuth: []
-    requestBody:
-      required: true
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/MessageCreateRequest'
+              $ref: '#/components/schemas/MessageCreateRequest'
       responses:
         '201':
-          description: Message sent
+          description: Message created
           content:
             application/json:
               schema:
@@ -808,144 +691,90 @@ paths:
                 properties:
                   message:
                     $ref: '#/components/schemas/Message'
-      '400':
-        description: Invalid message request
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              validation:
-                value:
-                  message: Validation failed
-                  hint: Please review the highlighted fields and try again.
-              selfMessage:
-                value:
-                  message: Cannot send messages to yourself
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '404':
-        description: Recipient not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missingRecipient:
-                value:
-                  message: Recipient not found
-/messages/{id}:
-  get:
-    tags: [Messages]
-    summary: Get message details
-    security:
-      - bearerAuth: []
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '404':
+          description: Recipient not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/{id}:
     parameters:
       - $ref: '#/components/parameters/MessageId'
-    responses:
-      '200':
-        description: Message details
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                message:
-                  $ref: '#/components/schemas/Message'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Attempt to access message without permission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: You do not have access to this message
-      '404':
-        description: Message not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Message not found
-  delete:
-    tags: [Messages]
-    summary: Delete a message
-    security:
-      - bearerAuth: []
+    get:
+      tags: [Messages]
+      summary: Get message detail
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Message detail
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+    delete:
+      tags: [Messages]
+      summary: Delete a message
+      security:
+        - bearerAuth: []
+      responses:
+        '204':
+          description: Message deleted
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /messages/{id}/read:
     parameters:
       - $ref: '#/components/parameters/MessageId'
-    responses:
-      '204':
-        description: Deleted
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Attempt to delete message without permission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: You do not have permission to delete this message
-      '404':
-        description: Message not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Message not found
-/messages/{id}/read:
-  patch:
-    tags: [Messages]
-    summary: Mark a message as read
-    security:
-      - bearerAuth: []
-    parameters:
-      - $ref: '#/components/parameters/MessageId'
-    responses:
-      '200':
-        description: Message marked as read
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                message:
-                  $ref: '#/components/schemas/Message'
-      '401':
-        $ref: '#/components/responses/UnauthorizedError'
-      '403':
-        description: Attempt to mark message without permission
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              forbidden:
-                value:
-                  message: Only the recipient can mark the message as read
-      '404':
-        description: Message not found
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/ErrorResponse'
-            examples:
-              missing:
-                value:
-                  message: Message not found
+    patch:
+      tags: [Messages]
+      summary: Mark message as read
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Updated message
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    $ref: '#/components/schemas/Message'
+        '401':
+          $ref: '#/components/responses/UnauthorizedError'
+        '403':
+          $ref: '#/components/responses/ForbiddenError'
+        '404':
+          description: Message not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 components:
   securitySchemes:
     bearerAuth:
@@ -959,25 +788,43 @@ components:
       required: true
       schema:
         type: integer
+      description: Athlete identifier
     TrainingPlanId:
       name: id
       in: path
       required: true
       schema:
         type: integer
+      description: Training plan identifier
     NutritionPlanId:
       name: id
       in: path
       required: true
       schema:
         type: integer
+      description: Nutrition plan identifier
     MessageId:
       name: id
       in: path
       required: true
       schema:
         type: integer
+      description: Message identifier
   responses:
+    ValidationError:
+      description: Payload validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
+          examples:
+            validation:
+              value:
+                message: Validation failed
+                details:
+                  - message: "username is required"
+                    field: username
+                    type: any.required
     UnauthorizedError:
       description: Authentication required
       content:
@@ -998,58 +845,53 @@ components:
             default:
               value:
                 message: Insufficient permissions
-    NotFoundError:
-      description: Requested resource was not found
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            default:
-              value:
-                message: Resource not found
-    ConflictError:
-      description: Resource already exists
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            default:
-              value:
-                message: Conflict
-    ValidationError:
-      description: Payload validation failed
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ValidationErrorResponse'
-          examples:
-            default:
-              value:
-                message: Validation failed
-                hint: Please review the highlighted fields and try again.
-                details:
-                  - field: password
-                    message: "Password length must be at least 8 characters long"
-    UnprocessableEntityError:
-      description: Payload could not be processed due to business rules
-      content:
-        application/json:
-          schema:
-            $ref: '#/components/schemas/ErrorResponse'
-          examples:
-            default:
-              value:
-                message: specialistId is required
   schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - message
+      properties:
+        message:
+          type: string
+        details:
+          type: array
+          items:
+            $ref: '#/components/schemas/ValidationDetail'
+        hint:
+          type: string
+    ValidationDetail:
+      type: object
+      properties:
+        message:
+          type: string
+        field:
+          type: string
+        type:
+          type: string
+    Tokens:
+      type: object
+      required:
+        - accessToken
+        - refreshToken
+      properties:
+        accessToken:
+          type: string
+        refreshToken:
+          type: string
     UserSummary:
       type: object
+      required:
+        - id
+        - email
+        - firstName
+        - lastName
+        - role
       properties:
         id:
           type: integer
         email:
           type: string
+          format: email
         firstName:
           type: string
         lastName:
@@ -1057,9 +899,311 @@ components:
         role:
           type: string
           enum: [ATHLETE, SPECIALIST, ADMIN]
+    Athlete:
+      type: object
+      required:
+        - id
+        - userId
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        dateOfBirth:
+          type: string
+          format: date
+          nullable: true
+        heightCm:
+          type: integer
+          nullable: true
+        weightKg:
+          type: number
+          format: float
+          nullable: true
+        restingHeartRate:
+          type: integer
+          nullable: true
+        bio:
+          type: string
+          nullable: true
+        user:
+          $ref: '#/components/schemas/UserSummary'
+    AthleteExpanded:
+      allOf:
+        - $ref: '#/components/schemas/Athlete'
+        - type: object
+          properties:
+            trainingPlans:
+              type: array
+              items:
+                $ref: '#/components/schemas/TrainingPlan'
+            nutritionPlans:
+              type: array
+              items:
+                $ref: '#/components/schemas/NutritionPlan'
+    TrainingPlan:
+      type: object
+      required:
+        - id
+        - athleteId
+        - specialistId
+        - title
+        - startDate
+        - endDate
+        - intensityLevel
+      properties:
+        id:
+          type: integer
+        athleteId:
+          type: integer
+        specialistId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        intensityLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+        athlete:
+          $ref: '#/components/schemas/Athlete'
+        specialist:
+          $ref: '#/components/schemas/UserSummary'
+    TrainingPlanCreateRequest:
+      type: object
+      required:
+        - athleteId
+        - title
+        - startDate
+        - endDate
+        - intensityLevel
+      properties:
+        athleteId:
+          type: integer
+        specialistId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        intensityLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+    TrainingPlanUpdateRequest:
+      type: object
+      required:
+        - title
+        - startDate
+        - endDate
+        - intensityLevel
+      properties:
+        athleteId:
+          type: integer
+        specialistId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        intensityLevel:
+          type: string
+          enum: [LOW, MEDIUM, HIGH]
+    NutritionPlan:
+      type: object
+      required:
+        - id
+        - athleteId
+        - specialistId
+        - title
+        - startDate
+        - endDate
+      properties:
+        id:
+          type: integer
+        athleteId:
+          type: integer
+        specialistId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        caloriesPerDay:
+          type: integer
+          nullable: true
+        macronutrientRatio:
+          type: object
+          nullable: true
+          properties:
+            carbohydrates:
+              type: number
+              nullable: true
+            protein:
+              type: number
+              nullable: true
+            fat:
+              type: number
+              nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        athlete:
+          $ref: '#/components/schemas/Athlete'
+        specialist:
+          $ref: '#/components/schemas/UserSummary'
+    NutritionPlanCreateRequest:
+      type: object
+      required:
+        - athleteId
+        - title
+        - startDate
+        - endDate
+      properties:
+        athleteId:
+          type: integer
+        specialistId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        caloriesPerDay:
+          type: integer
+          nullable: true
+        macronutrientRatio:
+          type: object
+          nullable: true
+          properties:
+            carbohydrates:
+              type: number
+              nullable: true
+            protein:
+              type: number
+              nullable: true
+            fat:
+              type: number
+              nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+    NutritionPlanUpdateRequest:
+      type: object
+      required:
+        - title
+        - startDate
+        - endDate
+      properties:
+        athleteId:
+          type: integer
+        specialistId:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        caloriesPerDay:
+          type: integer
+          nullable: true
+        macronutrientRatio:
+          type: object
+          nullable: true
+          properties:
+            carbohydrates:
+              type: number
+              nullable: true
+            protein:
+              type: number
+              nullable: true
+            fat:
+              type: number
+              nullable: true
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+    Message:
+      type: object
+      required:
+        - id
+        - senderId
+        - recipientId
+        - subject
+        - body
+        - createdAt
+      properties:
+        id:
+          type: integer
+        senderId:
+          type: integer
+        recipientId:
+          type: integer
+        subject:
+          type: string
+        body:
+          type: string
+        readAt:
+          type: string
+          format: date-time
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        sender:
+          $ref: '#/components/schemas/UserSummary'
+        recipient:
+          $ref: '#/components/schemas/UserSummary'
+    MessageCreateRequest:
+      type: object
+      required:
+        - recipientId
+        - subject
+        - body
+      properties:
+        recipientId:
+          type: integer
+        subject:
+          type: string
+        body:
+          type: string
     RegisterRequest:
       type: object
-      required: [email, password, firstName, lastName]
+      required:
+        - email
+        - password
+        - firstName
+        - lastName
       properties:
         email:
           type: string
@@ -1076,6 +1220,7 @@ components:
           enum: [ATHLETE, SPECIALIST, ADMIN]
         athleteProfile:
           type: object
+          nullable: true
           properties:
             dateOfBirth:
               type: string
@@ -1084,13 +1229,16 @@ components:
               type: integer
             weightKg:
               type: number
+              format: float
             restingHeartRate:
               type: integer
             bio:
               type: string
     LoginRequest:
       type: object
-      required: [email, password]
+      required:
+        - email
+        - password
       properties:
         email:
           type: string
@@ -1100,12 +1248,16 @@ components:
           format: password
     RefreshRequest:
       type: object
-      required: [refreshToken]
+      required:
+        - refreshToken
       properties:
         refreshToken:
           type: string
-    Tokens:
+    RefreshResponse:
       type: object
+      required:
+        - accessToken
+        - refreshToken
       properties:
         accessToken:
           type: string
@@ -1113,254 +1265,55 @@ components:
           type: string
     AuthResponse:
       type: object
+      required:
+        - user
+        - tokens
       properties:
         user:
           $ref: '#/components/schemas/UserSummary'
         tokens:
           $ref: '#/components/schemas/Tokens'
-      RefreshResponse:
-        type: object
-        properties:
-          accessToken:
-            type: string
-          refreshToken:
-            type: string
-      ErrorDetail:
-        type: object
-        properties:
-          field:
-            type: string
-            description: Field path related to the validation error
-          message:
-            type: string
-          type:
-            type: string
-            description: Joi validation error code
-      ErrorResponse:
-        type: object
-        properties:
-          message:
-            type: string
-          details:
-            type: array
-            items:
-              $ref: '#/components/schemas/ErrorDetail'
-          hint:
-            type: string
-        additionalProperties: false
-      ValidationErrorResponse:
-        allOf:
-          - $ref: '#/components/schemas/ErrorResponse'
-      Athlete:
-        type: object
-        properties:
-          id:
-            type: integer
-        userId:
-          type: integer
-        dateOfBirth:
-          type: string
-          format: date
-        heightCm:
-          type: integer
-        weightKg:
-          type: number
-        restingHeartRate:
-          type: integer
-        bio:
-          type: string
-        user:
-          $ref: '#/components/schemas/UserSummary'
-    AthleteExpanded:
-      allOf:
-        - $ref: '#/components/schemas/Athlete'
-        - type: object
-          properties:
-            trainingPlans:
-              type: array
-              items:
-                $ref: '#/components/schemas/TrainingPlan'
-            nutritionPlans:
-              type: array
-              items:
-                $ref: '#/components/schemas/NutritionPlan'
     AthleteCreateRequest:
       type: object
-      required: [userId]
+      required:
+        - userId
       properties:
         userId:
           type: integer
         dateOfBirth:
           type: string
           format: date
+          nullable: true
         heightCm:
           type: integer
+          nullable: true
         weightKg:
           type: number
+          format: float
+          nullable: true
         restingHeartRate:
           type: integer
+          nullable: true
         bio:
           type: string
+          nullable: true
     AthleteUpdateRequest:
       type: object
       properties:
         dateOfBirth:
           type: string
           format: date
+          nullable: true
         heightCm:
           type: integer
+          nullable: true
         weightKg:
           type: number
+          format: float
+          nullable: true
         restingHeartRate:
           type: integer
+          nullable: true
         bio:
           type: string
-    TrainingPlan:
-      type: object
-      properties:
-        id:
-          type: integer
-        athleteId:
-          type: integer
-        specialistId:
-          type: integer
-        title:
-          type: string
-        description:
-          type: string
-        startDate:
-          type: string
-          format: date
-        endDate:
-          type: string
-          format: date
-        intensityLevel:
-          type: string
-          enum: [LOW, MEDIUM, HIGH]
-        athlete:
-          $ref: '#/components/schemas/Athlete'
-        specialist:
-          $ref: '#/components/schemas/UserSummary'
-    TrainingPlanCreateRequest:
-      type: object
-      required: [athleteId, title, startDate, endDate, intensityLevel]
-      properties:
-        athleteId:
-          type: integer
-        specialistId:
-          type: integer
-        title:
-          type: string
-        description:
-          type: string
-        startDate:
-          type: string
-          format: date
-        endDate:
-          type: string
-          format: date
-        intensityLevel:
-          type: string
-          enum: [LOW, MEDIUM, HIGH]
-    TrainingPlanUpdateRequest:
-      allOf:
-        - $ref: '#/components/schemas/TrainingPlanCreateRequest'
-    NutritionPlan:
-      type: object
-      properties:
-        id:
-          type: integer
-        athleteId:
-          type: integer
-        specialistId:
-          type: integer
-        title:
-          type: string
-        description:
-          type: string
-        caloriesPerDay:
-          type: integer
-        macronutrientRatio:
-          type: object
-          properties:
-            carbohydrates:
-              type: number
-            protein:
-              type: number
-            fat:
-              type: number
-        startDate:
-          type: string
-          format: date
-        endDate:
-          type: string
-          format: date
-        athlete:
-          $ref: '#/components/schemas/Athlete'
-        specialist:
-          $ref: '#/components/schemas/UserSummary'
-    NutritionPlanCreateRequest:
-      type: object
-      required: [athleteId, title, startDate, endDate]
-      properties:
-        athleteId:
-          type: integer
-        specialistId:
-          type: integer
-        title:
-          type: string
-        description:
-          type: string
-        caloriesPerDay:
-          type: integer
-        macronutrientRatio:
-          type: object
-          properties:
-            carbohydrates:
-              type: number
-            protein:
-              type: number
-            fat:
-              type: number
-        startDate:
-          type: string
-          format: date
-        endDate:
-          type: string
-          format: date
-    NutritionPlanUpdateRequest:
-      allOf:
-        - $ref: '#/components/schemas/NutritionPlanCreateRequest'
-    Message:
-      type: object
-      properties:
-        id:
-          type: integer
-        senderId:
-          type: integer
-        recipientId:
-          type: integer
-        subject:
-          type: string
-        body:
-          type: string
-        readAt:
-          type: string
-          format: date-time
-        createdAt:
-          type: string
-          format: date-time
-        sender:
-          $ref: '#/components/schemas/UserSummary'
-        recipient:
-          $ref: '#/components/schemas/UserSummary'
-    MessageCreateRequest:
-      type: object
-      required: [recipientId, subject, body]
-      properties:
-        recipientId:
-          type: integer
-        subject:
-          type: string
-        body:
-          type: string
+          nullable: true
